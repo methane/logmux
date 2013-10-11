@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/exec"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 )
@@ -81,13 +82,28 @@ func logWriter(cmd string, ch chan []byte) {
 	}
 }
 
+func parseSock(sock string) (string, string) {
+	sockType := "tcp"
+	switch {
+	case sock[0] == '/':
+		sockType = "unix"
+	case strings.Contains(sock, "://"):
+		pos := strings.Index(sock, "://")
+		sockType = sock[:pos]
+		sock = sock[pos+3:]
+	}
+	return sockType, sock
+}
+
 func main() {
 	sock := os.Args[1]
 	cmd := os.Args[2]
 	sigc := make(chan os.Signal, 1)
 	signal.Notify(sigc, os.Interrupt, os.Kill, syscall.SIGTERM)
 
-	l, err := net.Listen("unix", sock)
+	sockType, sock := parseSock(sock)
+	log.Println("Listening", sockType, sock)
+	l, err := net.Listen(sockType, sock)
 	if err != nil {
 		log.Panic(err)
 	}
